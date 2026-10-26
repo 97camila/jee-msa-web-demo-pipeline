@@ -1,0 +1,7 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: jee-msa-web-demo-pipeline
+    description: Demo project with Spring Boot for pipeline execution
