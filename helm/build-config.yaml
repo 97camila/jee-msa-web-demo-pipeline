@@ -21,7 +21,7 @@ spec:
       from:
         kind: ImageStreamTag
         namespace: openshift
-        name: java:17 # El constructor base de Red Hat que iniciará el flujo de Gradle Toolchains
+        name: java:25
   output:
     to:
       kind: ImageStreamTag
