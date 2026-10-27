@@ -16,16 +16,16 @@ stages:
   # STAGE 1: INTEGRACIÓN CONTINUA (CI)
   # ==========================================
   - stage: CI
-    displayName: 'Integración Continua'
+    displayName: 'CI'
     jobs:
       - job: prevalidation
-        displayName: 'Prevalidaciones de Código'
+        displayName: 'Prevalidar'
         steps:
           - script: echo "Estructura del repositorio verificada correctamente por Jeferson Villacis."
             displayName: 'Chequeo inicial'
 
       - job: build
-        displayName: 'Compilación (Build)'
+        displayName: 'Compilar'
         dependsOn: prevalidation
         steps:
           - script: |
@@ -43,10 +43,10 @@ stages:
 
               echo "=== Compilando con Gradle ==="
               ./gradlew compileJava -x test
-            displayName: 'Instalar Java 25 y Compilar'
+            displayName: 'Instalar Java y Compilar'
 
       - job: test
-        displayName: 'Pruebas Unitarias y Cobertura (JaCoCo)'
+        displayName: 'Pruebas y Cobertura'
         dependsOn: build
         steps:
           - script: |
@@ -62,7 +62,7 @@ stages:
 
               echo "=== Ejecutar Pruebas y Verificar Cobertura ==="
               ./gradlew check
-            displayName: 'Instalar Java, Ejecutar Pruebas y Cobertura'
+            displayName: 'Instalar Java, Ejecutar Pruebas y Verificar Cobertura'
 
           # Publica el reporte visual de JaCoCo
           - task: PublishCodeCoverageResults@2
@@ -75,7 +75,7 @@ stages:
   # STAGE 2: APROBACIÓN MANUAL (APPROVAL)
   # ==========================================
   - stage: Approval
-    displayName: 'Aprobación'
+    displayName: 'Aprobar'
     dependsOn: CI
     condition: succeeded()
     jobs:
@@ -98,7 +98,7 @@ stages:
     condition: succeeded()
     jobs:
       - job: deploy_openshift
-        displayName: 'Desplegar en OpenShift (Docker Build)'
+        displayName: 'Desplegar en OpenShift'
         steps:
           - script: |
               echo "=== 1. Descargando e instalando OpenShift CLI (oc) ==="
@@ -135,7 +135,7 @@ stages:
   # STAGE 4: NOTIFICACIONES (NOTIFICATIONS)
   # ==========================================
   - stage: Notifications
-    displayName: 'Fase de Notificaciones'
+    displayName: 'Notificar'
     dependsOn: [CI, Approval, CD]
     condition: always()
     jobs:
