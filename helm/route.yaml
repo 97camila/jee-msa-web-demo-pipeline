@@ -1,0 +1,10 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: jee-msa-web-demo-pipeline
+spec:
+  to:
+    kind: Service
+    name: jee-msa-web-demo-pipeline
+  port:
+    targetPort: 8080
