@@ -1,11 +1,3 @@
-apiVersion: image.openshift.io/v1
-kind: ImageStream
-metadata:
-  name: jee-msa-web-demo-pipeline
-spec:
-  lookupPolicy:
-    local: true
----
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
@@ -23,11 +15,14 @@ spec:
         namespace: openshift
         name: java:openjdk-17-ubi8
       env:
-        # 1. Forzamos a Gradle a generar el fat jar
+        # 1. Forzar al builder a mirar en la raíz del repositorio
+        - name: S2I_SOURCE_DIR
+          value: "."
+        # 2. Forzar la ejecución de la tarea de Gradle
         - name: BUILDER_ARGS
           value: "bootJar -x test"
-        # 2. Le decimos a OpenShift el nombre exacto del JAR generado
-        - name: APP_FILE
+        # 3. Indicar el sufijo del JAR generado (app.jar)
+        - name: APP_SUFFIX
           value: "app.jar"
   output:
     to:
