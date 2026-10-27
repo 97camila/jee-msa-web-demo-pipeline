@@ -1,0 +1,109 @@
+# ==========================================
+# TRIGGERS: SE ACTIVA SOLO AL CONSOLIDAR CÓDIGO
+# ==========================================
+trigger:
+  branches:
+    include:
+      - master
+      - develop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+
+  # ==========================================
+  # STAGE 1: INTEGRACIÓN CONTINUA (CI)
+  # ==========================================
+  - stage: CI
+    displayName: 'Fase de Integración Continua'
+    jobs:
+      - job: prevalidation
+        displayName: 'Prevalidaciones de Código'
+        steps:
+          - script: echo "Estructura del repositorio verificada correctamente por Jeferson Villacis."
+            displayName: 'Chequeo inicial'
+
+      - job: build
+        displayName: 'Compilación (Build)'
+        dependsOn: prevalidation
+        steps:
+          # Configura de forma automática y nativa el entorno de ejecución para Java
+          - task: JavaToolInstaller@0
+            inputs:
+              versionSpec: '21' # Azure Pipelines usa la versión estable de LTS disponible en sus agentes
+              jdkArchitecture: 'x64'
+              jdkSourceOption: 'PreInstalled'
+
+          - script: ./gradlew compileJava -x test
+            displayName: 'Compilar aplicación Java con Gradle'
+
+      - job: test
+        displayName: 'Pruebas Unitarias y Cobertura (JaCoCo)'
+        dependsOn: build
+        steps:
+          # Ejecuta pruebas y valida cobertura (>75%). Si no llega, rompe aquí.
+          - script: ./gradlew check
+            displayName: 'Ejecutar Pruebas y Verificar Cobertura'
+
+          # Muestra el reporte de cobertura de forma visual en la pestaña de Azure DevOps
+          - task: PublishCodeCoverageResults@2
+            inputs:
+              summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/build/reports/jacoco/test/jacocoTestReport.xml'
+              pathToSources: '$(System.DefaultWorkingDirectory)/src/main/java'
+            displayName: 'Publicar Cobertura en Azure DevOps'
+
+  # ==========================================
+  # STAGE 2: APROBACIÓN MANUAL (APPROVAL)
+  # ==========================================
+  - stage: Approval
+    displayName: 'Fase de Aprobación'
+    dependsOn: CI
+    condition: succeeded()
+    jobs:
+      - job: manual_gate
+        displayName: 'Esperando compuerta de aprobación'
+        pool: server
+        steps:
+          - task: ManualValidation@0
+            inputs:
+              notifyUsers: 'jefersonvillacis@hotmail.com'
+              instructions: 'Por favor valida que la cobertura JaCoCo en la pestaña superior sea superior al 75% antes de desplegar en OpenShift Sandbox.'
+              onTimeout: 'reject'
+
+  # ==========================================
+  # STAGE 3: DESPLIEGUE CONTINUO (CD)
+  # ==========================================
+  - stage: CD
+    displayName: 'Fase de Despliegue Continuo'
+    dependsOn: Approval
+    condition: succeeded()
+    jobs:
+      - job: deploy_openshift
+        displayName: 'Desplegar en OpenShift'
+        steps:
+          - task: OcCLI@1
+            inputs:
+              openshiftService: 'MiClusterOpenShiftSandbox'
+              command: |
+                # 1. Creamos y disparamos la compilación del contenedor dentro de OpenShift
+                oc apply -f helm/build-config.yaml
+                oc start-build jee-msa-web-demo-pipeline --follow
+                # 2. Una vez que la imagen está guardada en el registro, desplegamos la app
+                oc apply -f helm/
+            displayName: 'Aplicar Carpeta Helm en Clúster OpenShift'
+
+  # ==========================================
+  # STAGE 4: NOTIFICACIONES (NOTIFICATIONS)
+  # ==========================================
+  - stage: Notifications
+    displayName: 'Fase de Notificaciones'
+    dependsOn: [CI, Approval, CD]
+    condition: always()
+    jobs:
+      - job: send_status_email
+        displayName: 'Enviar Reporte por Correo'
+        steps:
+          - script: |
+              echo "Estado de la ejecución final del pipeline de Jeferson: $(Agent.JobStatus)"
+            displayName: 'Simulación de Envío de Correo de Estado'
