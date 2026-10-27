@@ -28,27 +28,38 @@ stages:
         displayName: 'Compilación (Build)'
         dependsOn: prevalidation
         steps:
-          # Instalación de Java 25 desde Azure Storage (necesario para versiones no preinstaladas)
-          - task: JavaToolInstaller@0
-            inputs:
-              versionSpec: '25'
-              jdkArchitecture: 'x64'
-              jdkSourceOption: 'AzureStorage'
-              # URL del JDK 25 (Ejemplo con Eclipse Temurin, ajusta si usas otra distribución)
-              jdkFile: 'https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25%2B36/OpenJDK25U-jdk_x64_linux_hotspot_25_36.tar.gz'
+          - script: |
+              echo "=== Descargando e instalando JDK 25 (Temurin) ==="
+              wget -q https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25%2B36/OpenJDK25U-jdk_x64_linux_hotspot_25_36.tar.gz -O /tmp/jdk25.tar.gz
+              sudo mkdir -p /opt/java
+              sudo tar -xzf /tmp/jdk25.tar.gz -C /opt/java
+              export JAVA_HOME=$(find /opt/java -maxdepth 1 -type d -name "jdk-25*" | head -n 1)
+              export PATH=$JAVA_HOME/bin:$PATH
+              echo "JAVA_HOME configurado en: $JAVA_HOME"
+              java -version
 
-          - script: ./gradlew compileJava -x test
-            displayName: 'Compilar aplicación Java con Gradle'
+              echo "=== Compilando con Gradle ==="
+              ./gradlew compileJava -x test
+            displayName: 'Instalar Java 25 y Compilar'
 
       - job: test
         displayName: 'Pruebas Unitarias y Cobertura (JaCoCo)'
         dependsOn: build
         steps:
-          # Ejecuta pruebas y valida cobertura (>75%). Si no llega, rompe aquí.
-          - script: ./gradlew check
-            displayName: 'Ejecutar Pruebas y Verificar Cobertura'
+          # Instalamos Java 25 también aquí, porque es un agente nuevo
+          - script: |
+              echo "=== Instalando JDK 25 para Tests ==="
+              wget -q https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25%2B36/OpenJDK25U-jdk_x64_linux_hotspot_25_36.tar.gz -O /tmp/jdk25.tar.gz
+              sudo mkdir -p /opt/java
+              sudo tar -xzf /tmp/jdk25.tar.gz -C /opt/java
+              export JAVA_HOME=$(find /opt/java -maxdepth 1 -type d -name "jdk-25*" | head -n 1)
+              export PATH=$JAVA_HOME/bin:$PATH
+              
+              echo "=== Ejecutar Pruebas y Verificar Cobertura ==="
+              ./gradlew check
+            displayName: 'Instalar Java, Ejecutar Pruebas y Cobertura'
 
-          # Muestra el reporte de cobertura de forma visual en la pestaña de Azure DevOps
+          # Publica el reporte visual de JaCoCo
           - task: PublishCodeCoverageResults@2
             inputs:
               summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/build/reports/jacoco/test/jacocoTestReport.xml'
@@ -93,14 +104,12 @@ stages:
               oc version --client
 
               echo "=== 2. Autenticando en el Clúster ==="
-              # Usa las variables configuradas en Azure DevOps
               oc login --token=$(OPENSHIFT_TOKEN) --server=$(OPENSHIFT_SERVER) --insecure-skip-tls-verify=true
               
               echo "=== 3. Seleccionando Proyecto (Namespace) ==="
               oc project testing-account-dev
               
               echo "=== 4. Aplicando Manifiestos ==="
-              # Importante: Se asume que tus archivos están en la carpeta 'helm' o 'k8s'
               oc apply -f helm/build-config.yaml
               
               echo "=== 5. Iniciando Construcción de Imagen ==="
