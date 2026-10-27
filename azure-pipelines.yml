@@ -28,12 +28,14 @@ stages:
         displayName: 'Compilación (Build)'
         dependsOn: prevalidation
         steps:
-          # Configura de forma automática y nativa el entorno de ejecución para Java
+          # Instalación de Java 25 desde Azure Storage (necesario para versiones no preinstaladas)
           - task: JavaToolInstaller@0
             inputs:
-              versionSpec: '21' # Azure Pipelines usa la versión estable de LTS disponible en sus agentes
+              versionSpec: '25'
               jdkArchitecture: 'x64'
-              jdkSourceOption: 'PreInstalled'
+              jdkSourceOption: 'AzureStorage'
+              # URL del JDK 25 (Ejemplo con Eclipse Temurin, ajusta si usas otra distribución)
+              jdkFile: 'https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25%2B36/OpenJDK25U-jdk_x64_linux_hotspot_25_36.tar.gz'
 
           - script: ./gradlew compileJava -x test
             displayName: 'Compilar aplicación Java con Gradle'
@@ -80,18 +82,36 @@ stages:
     condition: succeeded()
     jobs:
       - job: deploy_openshift
-        displayName: 'Desplegar en OpenShift'
+        displayName: 'Desplegar en OpenShift (Vía Script)'
         steps:
-          - task: OcCLI@1
-            inputs:
-              openshiftService: 'MiClusterOpenShiftSandbox'
-              command: |
-                # 1. Creamos y disparamos la compilación del contenedor dentro de OpenShift
-                oc apply -f helm/build-config.yaml
-                oc start-build jee-msa-web-demo-pipeline --follow
-                # 2. Una vez que la imagen está guardada en el registro, desplegamos la app
-                oc apply -f helm/
-            displayName: 'Aplicar Carpeta Helm en Clúster OpenShift'
+          - script: |
+              echo "=== 1. Descargando e instalando OpenShift CLI (oc) ==="
+              curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
+              tar -xzf openshift-client-linux.tar.gz
+              sudo mv oc /usr/local/bin/
+              sudo mv kubectl /usr/local/bin/ || true
+              oc version --client
+
+              echo "=== 2. Autenticando en el Clúster ==="
+              # Usa las variables configuradas en Azure DevOps
+              oc login --token=$(OPENSHIFT_TOKEN) --server=$(OPENSHIFT_SERVER) --insecure-skip-tls-verify=true
+              
+              echo "=== 3. Seleccionando Proyecto (Namespace) ==="
+              oc project testing-account-dev
+              
+              echo "=== 4. Aplicando Manifiestos ==="
+              # Importante: Se asume que tus archivos están en la carpeta 'helm' o 'k8s'
+              oc apply -f helm/build-config.yaml
+              
+              echo "=== 5. Iniciando Construcción de Imagen ==="
+              oc start-build jee-msa-web-demo-pipeline --follow
+              
+              echo "=== 6. Desplegando Aplicación ==="
+              oc apply -f helm/
+              
+              echo "=== 7. Obteniendo URL de la Aplicación ==="
+              oc get route jee-msa-web-demo-pipeline -o jsonpath='{"URL: http://"}{.spec.host}{"\n"}'
+            displayName: 'Descarga CLI, Login y Despliegue'
 
   # ==========================================
   # STAGE 4: NOTIFICACIONES (NOTIFICATIONS)
