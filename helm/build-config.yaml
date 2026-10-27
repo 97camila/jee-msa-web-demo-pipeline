@@ -22,6 +22,13 @@ spec:
         kind: ImageStreamTag
         namespace: openshift
         name: java:openjdk-17-ubi8
+      env:
+        # 1. Forzamos a Gradle a generar el fat jar
+        - name: BUILDER_ARGS
+          value: "bootJar -x test"
+        # 2. Le decimos a OpenShift el nombre exacto del JAR generado
+        - name: APP_FILE
+          value: "app.jar"
   output:
     to:
       kind: ImageStreamTag
