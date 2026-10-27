@@ -1,3 +1,11 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: jee-msa-web-demo-pipeline
+spec:
+  lookupPolicy:
+    local: true
+---
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
@@ -8,22 +16,7 @@ spec:
     git:
       uri: https://github.com/jefersonvillacis/jee-msa-web-demo-pipeline.git
   strategy:
-    type: Source
-    sourceStrategy:
-      from:
-        kind: ImageStreamTag
-        namespace: openshift
-        name: java:openjdk-17-ubi8
-      env:
-        # 1. Forzar al builder a mirar en la raíz del repositorio
-        - name: S2I_SOURCE_DIR
-          value: "."
-        # 2. Forzar la ejecución de la tarea de Gradle
-        - name: BUILDER_ARGS
-          value: "bootJar -x test"
-        # 3. Indicar el sufijo del JAR generado (app.jar)
-        - name: APP_SUFFIX
-          value: "app.jar"
+    type: Docker
   output:
     to:
       kind: ImageStreamTag

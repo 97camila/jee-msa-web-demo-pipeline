@@ -98,34 +98,38 @@ stages:
     condition: succeeded()
     jobs:
       - job: deploy_openshift
-        displayName: 'Desplegar en OpenShift (Vía Script)'
+        displayName: 'Desplegar en OpenShift (Docker Build)'
         steps:
           - script: |
               echo "=== 1. Descargando e instalando OpenShift CLI (oc) ==="
               curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
               tar -xzf openshift-client-linux.tar.gz
               sudo mv oc /usr/local/bin/
-              sudo mv kubectl /usr/local/bin/ || true
-              oc version --client
 
               echo "=== 2. Autenticando en el Clúster ==="
               oc login --token=$(OPENSHIFT_TOKEN) --server=$(OPENSHIFT_SERVER) --insecure-skip-tls-verify=true
-              
-              echo "=== 3. Seleccionando Proyecto (Namespace) ==="
+
+              echo "=== 3. Seleccionando Proyecto ==="
               oc project testing-account-dev
-              
-              echo "=== 4. Aplicando Manifiestos ==="
+
+              echo "=== 4. Aplicando Manifiestos (Creando BuildConfig y Deployment) ==="
               oc apply -f helm/build-config.yaml
-              
-              echo "=== 5. Iniciando Construcción de Imagen ==="
+              oc apply -f helm/dev.yml
+              oc apply -f helm/service.yaml
+              oc apply -f helm/route.yaml
+
+              echo "=== 5. Iniciando Build en OpenShift (Dockerfile) ==="
               oc start-build jee-msa-web-demo-pipeline --follow
-              
-              echo "=== 6. Desplegando Aplicación ==="
-              oc apply -f helm/
-              
-              echo "=== 7. Obteniendo URL de la Aplicación ==="
+
+              echo "=== 6. Reiniciando el despliegue para tomar la nueva imagen ==="
+              oc rollout restart deployment/jee-msa-web-demo-pipeline
+
+              echo "=== 7. Esperando a que el Pod esté listo ==="
+              oc rollout status deployment/jee-msa-web-demo-pipeline
+
+              echo "=== 8. Obteniendo URL de la Aplicación ==="
               oc get route jee-msa-web-demo-pipeline -o jsonpath='{"URL: http://"}{.spec.host}{"\n"}'
-            displayName: 'Descarga CLI, Login y Despliegue'
+            displayName: 'Descarga CLI, Login y Despliegue Docker'
 
   # ==========================================
   # STAGE 4: NOTIFICACIONES (NOTIFICATIONS)
