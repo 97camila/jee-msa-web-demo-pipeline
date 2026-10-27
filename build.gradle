@@ -11,7 +11,7 @@ description = 'Demo project with Spring Boot for pipeline execution'
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(25)
+		languageVersion = JavaLanguageVersion.of(17)
 	}
 }
 
