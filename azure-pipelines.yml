@@ -93,7 +93,7 @@ stages:
   # STAGE 3: DESPLIEGUE CONTINUO (CD)
   # ==========================================
   - stage: CD
-    displayName: 'Despliegue Continuo'
+    displayName: 'CD'
     dependsOn: Approval
     condition: succeeded()
     jobs:
