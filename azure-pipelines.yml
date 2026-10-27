@@ -38,6 +38,9 @@ stages:
               echo "JAVA_HOME configurado en: $JAVA_HOME"
               java -version
 
+              echo "=== Dando permisos de ejecución a Gradle ==="
+              chmod +x gradlew
+
               echo "=== Compilando con Gradle ==="
               ./gradlew compileJava -x test
             displayName: 'Instalar Java 25 y Compilar'
@@ -46,7 +49,6 @@ stages:
         displayName: 'Pruebas Unitarias y Cobertura (JaCoCo)'
         dependsOn: build
         steps:
-          # Instalamos Java 25 también aquí, porque es un agente nuevo
           - script: |
               echo "=== Instalando JDK 25 para Tests ==="
               wget -q https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25%2B36/OpenJDK25U-jdk_x64_linux_hotspot_25_36.tar.gz -O /tmp/jdk25.tar.gz
@@ -54,7 +56,10 @@ stages:
               sudo tar -xzf /tmp/jdk25.tar.gz -C /opt/java
               export JAVA_HOME=$(find /opt/java -maxdepth 1 -type d -name "jdk-25*" | head -n 1)
               export PATH=$JAVA_HOME/bin:$PATH
-              
+
+              echo "=== Dando permisos de ejecución a Gradle ==="
+              chmod +x gradlew
+
               echo "=== Ejecutar Pruebas y Verificar Cobertura ==="
               ./gradlew check
             displayName: 'Instalar Java, Ejecutar Pruebas y Cobertura'
