@@ -16,7 +16,7 @@ stages:
   # STAGE 1: INTEGRACIÓN CONTINUA (CI)
   # ==========================================
   - stage: CI
-    displayName: 'Fase de Integración Continua'
+    displayName: 'Integración Continua'
     jobs:
       - job: prevalidation
         displayName: 'Prevalidaciones de Código'
@@ -75,25 +75,25 @@ stages:
   # STAGE 2: APROBACIÓN MANUAL (APPROVAL)
   # ==========================================
   - stage: Approval
-    displayName: 'Fase de Aprobación'
+    displayName: 'Aprobación'
     dependsOn: CI
     condition: succeeded()
     jobs:
       - job: manual_gate
-        displayName: 'Esperando compuerta de aprobación'
+        displayName: 'Esperando aprobación'
         pool: server
         steps:
           - task: ManualValidation@0
             inputs:
               notifyUsers: 'jefersonvillacis@hotmail.com'
-              instructions: 'Por favor valida que la cobertura JaCoCo en la pestaña superior sea superior al 75% antes de desplegar en OpenShift Sandbox.'
+              instructions: 'Aprobación requerida para ejecutar la fase de despliegue continuo en OpenShift Sandbox.'
               onTimeout: 'reject'
 
   # ==========================================
   # STAGE 3: DESPLIEGUE CONTINUO (CD)
   # ==========================================
   - stage: CD
-    displayName: 'Fase de Despliegue Continuo'
+    displayName: 'Despliegue Continuo'
     dependsOn: Approval
     condition: succeeded()
     jobs:
