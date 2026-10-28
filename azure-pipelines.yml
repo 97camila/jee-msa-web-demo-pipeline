@@ -8,7 +8,7 @@ trigger:
       - develop
 
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: 'ubuntu-24.04'
 
 stages:
 
@@ -21,8 +21,8 @@ stages:
       - job: prevalidation
         displayName: 'Prevalidar'
         steps:
-          - script: echo "Estructura del repositorio verificada correctamente por Jeferson Villacis."
-            displayName: 'Chequeo inicial'
+          - script: echo "Simulación de verificación de la estructura del repositorio realizada correctamente."
+            displayName: 'Validación inicial'
 
       - job: build
         displayName: 'Compilar'
@@ -140,8 +140,8 @@ stages:
     condition: always()
     jobs:
       - job: send_status_email
-        displayName: 'Enviar Reporte por Correo'
+        displayName: 'Enviar Reporte'
         steps:
           - script: |
-              echo "Estado de la ejecución final del pipeline de Jeferson: $(Agent.JobStatus)"
-            displayName: 'Simulación de Envío de Correo de Estado'
+              echo "Estado final de la ejecución del pipeline construido por Jeferson Villacís: $(Agent.JobStatus)"
+            displayName: 'Simulación de Envío de Correo Electrónico'
