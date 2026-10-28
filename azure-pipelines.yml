@@ -28,41 +28,55 @@ stages:
         displayName: 'Compilar'
         dependsOn: prevalidation
         steps:
+          # 1. Descargar el JDK 25 usando la API de Adoptium
           - script: |
-              echo "=== Descargando e instalando JDK 25 (Temurin) ==="
-              wget -q https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25%2B36/OpenJDK25U-jdk_x64_linux_hotspot_25_36.tar.gz -O /tmp/jdk25.tar.gz
-              sudo mkdir -p /opt/java
-              sudo tar -xzf /tmp/jdk25.tar.gz -C /opt/java
-              export JAVA_HOME=$(find /opt/java -maxdepth 1 -type d -name "jdk-25*" | head -n 1)
-              export PATH=$JAVA_HOME/bin:$PATH
-              echo "JAVA_HOME configurado en: $JAVA_HOME"
-              java -version
+              echo "Descargando JDK 25..."
+              curl -L -o $(Agent.TempDirectory)/jdk25.tar.gz "https://api.adoptium.net/v3/binary/latest/25/ga/linux/x64/jdk/hotspot/normal/eclipse"
+            displayName: 'Descargar JDK 25'
 
-              echo "=== Dando permisos de ejecución a Gradle ==="
+          # 2. Usar la tarea nativa para instalar java y configurar JAVA_HOME
+          - task: JavaToolInstaller@0
+            inputs:
+              versionSpec: '25'
+              jdkArchitectureOption: 'x64'
+              jdkSourceOption: 'LocalDirectory'
+              jdkFile: '$(Agent.TempDirectory)/jdk25.tar.gz'
+              jdkDestinationDirectory: '$(Agent.ToolsDirectory)/jdk'
+              cleanDestinationDirectory: true
+            displayName: 'Instalar Java 25'
+
+          # 3. Compilar
+          - script: |
               chmod +x gradlew
-
-              echo "=== Compilando con Gradle ==="
               ./gradlew compileJava -x test
-            displayName: 'Instalar Java y Compilar'
+            displayName: 'Compilar con Gradle'
 
       - job: test
         displayName: 'Pruebas y Cobertura'
         dependsOn: build
         steps:
+          # 1. Descargar el JDK 25 usando la API de Adoptium
           - script: |
-              echo "=== Instalando JDK 25 para Tests ==="
-              wget -q https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25%2B36/OpenJDK25U-jdk_x64_linux_hotspot_25_36.tar.gz -O /tmp/jdk25.tar.gz
-              sudo mkdir -p /opt/java
-              sudo tar -xzf /tmp/jdk25.tar.gz -C /opt/java
-              export JAVA_HOME=$(find /opt/java -maxdepth 1 -type d -name "jdk-25*" | head -n 1)
-              export PATH=$JAVA_HOME/bin:$PATH
+              echo "Descargando JDK 25..."
+              curl -L -o $(Agent.TempDirectory)/jdk25.tar.gz "https://api.adoptium.net/v3/binary/latest/25/ga/linux/x64/jdk/hotspot/normal/eclipse"
+            displayName: 'Descargar JDK 25'
 
-              echo "=== Dando permisos de ejecución a Gradle ==="
+          # 2. Usar la tarea nativa para instalar java y configurar JAVA_HOME
+          - task: JavaToolInstaller@0
+            inputs:
+              versionSpec: '25'
+              jdkArchitectureOption: 'x64'
+              jdkSourceOption: 'LocalDirectory'
+              jdkFile: '$(Agent.TempDirectory)/jdk25.tar.gz'
+              jdkDestinationDirectory: '$(Agent.ToolsDirectory)/jdk'
+              cleanDestinationDirectory: true
+            displayName: 'Instalar Java 25'
+
+          # 3. Ejecutar pruebas y cobertura
+          - script: |
               chmod +x gradlew
-
-              echo "=== Ejecutar Pruebas y Verificar Cobertura ==="
               ./gradlew check
-            displayName: 'Instalar Java, Ejecutar Pruebas y Verificar Cobertura'
+            displayName: 'Ejecutar Pruebas y Cobertura'
 
           # Publica el reporte visual de JaCoCo
           - task: PublishCodeCoverageResults@2
