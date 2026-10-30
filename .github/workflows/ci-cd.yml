@@ -157,3 +157,22 @@ jobs:
           oc project 97camilap-dev
 
           oc status
+
+          
+  # ==========================================
+  # JOB 5: APROBACIÓN MANUAL
+  # ==========================================
+  approval:
+    name: Aprobar despliegue
+    runs-on: ubuntu-24.04
+    needs: openshift_connection
+
+    environment:
+      name: openshift-sandbox
+
+    steps:
+      - name: Confirmar aprobación
+        run: |
+          echo "Aprobación manual completada."
+          echo "Autorizado para desplegar en OpenShift."
+
