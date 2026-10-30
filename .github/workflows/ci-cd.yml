@@ -104,3 +104,56 @@ jobs:
             **/build/test-results/**
           if-no-files-found: warn
 
+
+  # ==========================================
+  # JOB 4: VERIFICAR CONEXIÓN CON OPENSHIFT
+  # ==========================================
+  openshift_connection:
+    name: Verificar conexión OpenShift
+    runs-on: ubuntu-24.04
+    needs: test
+
+    steps:
+      # 1. Instalar OpenShift CLI
+      - name: Instalar OpenShift CLI
+        run: |
+          set -euo pipefail
+
+          curl -fL --retry 3 \
+            -o openshift-client-linux.tar.gz \
+            https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
+
+          tar -xzf openshift-client-linux.tar.gz oc
+          sudo install -m 0755 oc /usr/local/bin/oc
+
+          oc version --client
+
+      # 2. Autenticar en OpenShift
+      - name: Login en OpenShift
+        env:
+          OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
+          OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
+        run: |
+          set -euo pipefail
+
+          oc login \
+            --token="$OPENSHIFT_TOKEN" \
+            --server="$OPENSHIFT_SERVER" \
+            --insecure-skip-tls-verify=true
+
+      # 3. Seleccionar el proyecto
+      - name: Verificar proyecto OpenShift
+        env:
+          OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
+          OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
+        run: |
+          set -euo pipefail
+
+          oc login \
+            --token="$OPENSHIFT_TOKEN" \
+            --server="$OPENSHIFT_SERVER" \
+            --insecure-skip-tls-verify=true
+
+          oc project 97camilap-dev
+
+          oc status
