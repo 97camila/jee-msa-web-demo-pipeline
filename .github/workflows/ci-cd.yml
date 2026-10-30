@@ -176,3 +176,80 @@ jobs:
           echo "Aprobación manual completada."
           echo "Autorizado para desplegar en OpenShift."
 
+          
+  # ==========================================
+  # JOB 6: DESPLIEGUE CONTINUO (CD)
+  # ==========================================
+  deploy_openshift:
+    name: Desplegar en OpenShift
+    runs-on: ubuntu-24.04
+    needs: approval
+
+    steps:
+      # 1. Descargar el código
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      # 2. Instalar OpenShift CLI
+      - name: Instalar OpenShift CLI
+        run: |
+          set -euo pipefail
+
+          curl -fL --retry 3 \
+            -o openshift-client-linux.tar.gz \
+            https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
+
+          tar -xzf openshift-client-linux.tar.gz oc
+          sudo install -m 0755 oc /usr/local/bin/oc
+
+          oc version --client
+
+      # 3. Autenticarse en OpenShift
+      - name: Login en OpenShift
+        env:
+          OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
+          OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
+        run: |
+          oc login \
+            --token="$OPENSHIFT_TOKEN" \
+            --server="$OPENSHIFT_SERVER" \
+            --insecure-skip-tls-verify=true
+
+      # 4. Seleccionar proyecto
+      - name: Seleccionar proyecto
+        run: |
+          oc project 97camilap-dev
+
+      # 5. Aplicar manifiestos
+      - name: Aplicar manifiestos OpenShift
+        run: |
+          oc apply -f helm/build-config.yaml
+          oc apply -f helm/dev.yml
+          oc apply -f helm/service.yaml
+          oc apply -f helm/route.yaml
+
+      # 6. Construir imagen Docker
+      - name: Iniciar Build OpenShift
+        run: |
+          oc start-build jee-msa-web-demo-pipeline --follow
+
+      # 7. Reiniciar Deployment
+      - name: Reiniciar Deployment
+        run: |
+          oc rollout restart \
+            deployment/jee-msa-web-demo-pipeline
+
+      # 8. Esperar disponibilidad
+      - name: Verificar despliegue
+        run: |
+          oc rollout status \
+            deployment/jee-msa-web-demo-pipeline \
+            --timeout=300s
+
+      # 9. Mostrar URL
+      - name: Obtener URL de aplicación
+        run: |
+          oc get route jee-msa-web-demo-pipeline \
+            -o jsonpath='{"URL: http://"}{.spec.host}{"\n"}'
+
+
