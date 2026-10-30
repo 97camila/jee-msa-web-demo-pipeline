@@ -252,4 +252,57 @@ jobs:
           oc get route jee-msa-web-demo-pipeline \
             -o jsonpath='{"URL: http://"}{.spec.host}{"\n"}'
 
+            
+  # ==========================================
+  # JOB 7: NOTIFICACIONES
+  # ==========================================
+  notifications:
+    name: Enviar Reporte
+    runs-on: ubuntu-24.04
+
+    needs:
+      - prevalidation
+      - build
+      - test
+      - openshift_connection
+      - approval
+      - deploy_openshift
+
+    if: always()
+
+    steps:
+      - name: Mostrar estado del pipeline
+        env:
+          PREVALIDATION: ${{ needs.prevalidation.result }}
+          BUILD: ${{ needs.build.result }}
+          TEST: ${{ needs.test.result }}
+          CONNECTION: ${{ needs.openshift_connection.result }}
+          APPROVAL: ${{ needs.approval.result }}
+          DEPLOY: ${{ needs.deploy_openshift.result }}
+        run: |
+          echo "====================================="
+          echo "REPORTE FINAL DEL PIPELINE"
+          echo "====================================="
+          echo "Prevalidación: $PREVALIDATION"
+          echo "Compilación: $BUILD"
+          echo "Pruebas: $TEST"
+          echo "Conexión OpenShift: $CONNECTION"
+          echo "Aprobación: $APPROVAL"
+          echo "Despliegue: $DEPLOY"
+          echo "====================================="
+
+          {
+            echo "## Reporte final CI/CD"
+            echo ""
+            echo "| Etapa | Resultado |"
+            echo "|---|---|"
+            echo "| Prevalidación | $PREVALIDATION |"
+            echo "| Compilación | $BUILD |"
+            echo "| Pruebas | $TEST |"
+            echo "| Conexión OpenShift | $CONNECTION |"
+            echo "| Aprobación | $APPROVAL |"
+            echo "| Despliegue | $DEPLOY |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+
 
