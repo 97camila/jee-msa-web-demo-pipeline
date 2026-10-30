@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
         - name: java-app
-          image: image-registry.openshift-image-registry.svc:5000/testing-account-dev/jee-msa-web-demo-pipeline:latest
+          image: image-registry.openshift-image-registry.svc:5000/97camilap-dev/jee-msa-web-demo-pipeline:latest
           ports:
             - containerPort: 8080
