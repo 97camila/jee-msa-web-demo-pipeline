@@ -246,6 +246,17 @@ jobs:
             deployment/jee-msa-web-demo-pipeline \
             --timeout=300s
 
+      - name: Diagnosticar aplicación Java
+        run: |
+          echo "=== Últimos 100 registros de Java ==="
+          oc logs deployment/jee-msa-web-demo-pipeline \
+            -n 97camilap-dev \
+            --tail=100
+
+          echo "=== Estado de los Pods ==="
+          oc get pods -n 97camilap-dev
+
+
       # 9. Mostrar URL
       - name: Obtener URL de aplicación
         run: |
