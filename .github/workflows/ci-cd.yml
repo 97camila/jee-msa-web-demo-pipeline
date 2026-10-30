@@ -1,0 +1,24 @@
+
+name: CI/CD OpenShift
+
+on:
+  push:
+    branches:
+      - master
+      - develop
+
+  workflow_dispatch:
+
+jobs:
+  prevalidation:
+    name: Prevalidar
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Validación inicial
+        run: |
+          echo "Simulación de verificación de la estructura del repositorio realizada correctamente."
+          echo "GitHub Actions funciona correctamente."
