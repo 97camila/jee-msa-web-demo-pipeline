@@ -10,6 +10,10 @@ on:
   workflow_dispatch:
 
 jobs:
+
+  # ==========================================
+  # JOB 1: PREVALIDACIÓN
+  # ==========================================
   prevalidation:
     name: Prevalidar
     runs-on: ubuntu-24.04
@@ -21,4 +25,33 @@ jobs:
       - name: Validación inicial
         run: |
           echo "Simulación de verificación de la estructura del repositorio realizada correctamente."
-          echo "GitHub Actions funciona correctamente."
+
+  # ==========================================
+  # JOB 2: COMPILACIÓN
+  # ==========================================
+  build:
+    name: Compilar
+    runs-on: ubuntu-24.04
+    needs: prevalidation
+
+    steps:
+      # 1. Descargar código
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      # 2. Instalar Java 25
+      - name: Instalar Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      # 3. Verificar Java
+      - name: Verificar Java
+        run: java -version
+
+      # 4. Compilar con Gradle
+      - name: Compilar con Gradle
+        run: |
+          chmod +x gradlew
+          ./gradlew compileJava -x test
