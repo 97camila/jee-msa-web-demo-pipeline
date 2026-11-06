@@ -1,0 +1,199 @@
+
+name: CI/CD OpenShift
+
+on:
+  push:
+    branches:
+      - master
+      - develop
+  workflow_dispatch:
+
+jobs:
+
+  # ==========================================
+  # STAGE 1: INTEGRACIÓN CONTINUA (CI)
+  # ==========================================
+  ci:
+    name: CI
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      # 1. Prevalidación
+      - name: Prevalidar
+        run: |
+          echo "Simulación de verificación de la estructura del repositorio realizada correctamente."
+
+      # 2. Instalar Java 25
+      - name: Instalar Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      # 3. Compilación
+      - name: Compilar
+        run: |
+          java -version
+          chmod +x gradlew
+          ./gradlew compileJava -x test
+
+      # 4. Pruebas y cobertura
+      - name: Pruebas y Cobertura
+        run: |
+          ./gradlew check
+
+      # 5. Publicar cobertura
+      - name: Publicar Cobertura JaCoCo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage
+          path: |
+            **/build/reports/jacoco/test/jacocoTestReport.xml
+            **/build/reports/jacoco/test/html/**
+          if-no-files-found: warn
+
+      # 6. Publicar reportes
+      - name: Publicar Reportes de Pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            **/build/reports/tests/**
+            **/build/test-results/**
+          if-no-files-found: warn
+
+  # ==========================================
+  # STAGE 2: APROBACIÓN MANUAL
+  # ==========================================
+  approval:
+    name: Approval
+    runs-on: ubuntu-24.04
+    needs: ci
+
+    environment:
+      name: openshift-sandbox
+
+    steps:
+      - name: Confirmar aprobación
+        run: |
+          echo "Aprobación manual completada."
+          echo "Autorizado para desplegar en OpenShift."
+
+  # ==========================================
+  # STAGE 3: DESPLIEGUE CONTINUO (CD)
+  # ==========================================
+  cd:
+    name: CD
+    runs-on: ubuntu-24.04
+    needs: approval
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      # 1. Instalar OpenShift CLI
+      - name: Instalar OpenShift CLI
+        run: |
+          set -euo pipefail
+
+          curl -fL --retry 3 \
+            -o openshift-client-linux.tar.gz \
+            https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
+
+          tar -xzf openshift-client-linux.tar.gz oc
+          sudo install -m 0755 oc /usr/local/bin/oc
+
+          oc version --client
+
+      # 2. Autenticación
+      - name: Login en OpenShift
+        env:
+          OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
+          OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
+        run: |
+          set -euo pipefail
+
+          oc login \
+            --token="$OPENSHIFT_TOKEN" \
+            --server="$OPENSHIFT_SERVER" \
+            --insecure-skip-tls-verify=true
+
+      # 3. Seleccionar proyecto
+      - name: Seleccionar proyecto
+        run: |
+          oc project 97camilap-dev
+          oc status
+
+      # 4. Aplicar manifiestos
+      - name: Aplicar manifiestos OpenShift
+        run: |
+          oc apply -f helm/build-config.yaml
+          oc apply -f helm/dev.yml
+          oc apply -f helm/service.yaml
+          oc apply -f helm/route.yaml
+
+      # 5. Construir imagen
+      - name: Iniciar Build OpenShift
+        run: |
+          oc start-build jee-msa-web-demo-pipeline --follow
+
+      # 6. Reiniciar Deployment
+      - name: Reiniciar Deployment
+        run: |
+          oc rollout restart \
+            deployment/jee-msa-web-demo-pipeline
+
+      # 7. Esperar disponibilidad
+      - name: Verificar despliegue
+        run: |
+          oc rollout status \
+            deployment/jee-msa-web-demo-pipeline \
+            --timeout=300s
+
+      # 8. Mostrar URL
+      - name: Obtener URL de aplicación
+        run: |
+          oc get route jee-msa-web-demo-pipeline \
+            -o jsonpath='{"URL: http://"}{.spec.host}{"\n"}'
+
+  # ==========================================
+  # STAGE 4: NOTIFICACIONES
+  # ==========================================
+  notifications:
+    name: Notifications
+    runs-on: ubuntu-24.04
+    needs:
+      - ci
+      - approval
+      - cd
+
+    if: always()
+
+    steps:
+      - name: Simulación de Envío de Correo Electrónico
+        env:
+          CI_RESULT: ${{ needs.ci.result }}
+          APPROVAL_RESULT: ${{ needs.approval.result }}
+          CD_RESULT: ${{ needs.cd.result }}
+        run: |
+          echo "====================================="
+          echo "ESTADO FINAL DEL PIPELINE"
+          echo "====================================="
+          echo "CI: $CI_RESULT"
+          echo "Approval: $APPROVAL_RESULT"
+          echo "CD: $CD_RESULT"
+
+          {
+            echo "## Reporte final CI/CD"
+            echo ""
+            echo "| Etapa | Resultado |"
+            echo "|---|---|"
+            echo "| CI | $CI_RESULT |"
+            echo "| Approval | $APPROVAL_RESULT |"
+            echo "| CD | $CD_RESULT |"
+          } >> "$GITHUB_STEP_SUMMARY"
