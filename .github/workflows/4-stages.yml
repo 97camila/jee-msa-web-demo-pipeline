@@ -1,5 +1,5 @@
 
-name: CI/CD OpenShift
+name: CI/CD OpenShift 4 stages 30/10
 
 on:
   push:
