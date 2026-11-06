@@ -1,5 +1,5 @@
 
-name: CI/CD OpenShift 4 stages 30/10
+name: CI/CD OpenShift - 5 stages
 
 on:
   push:
@@ -68,12 +68,20 @@ jobs:
           if-no-files-found: warn
 
   # ==========================================
-  # STAGE 2: APROBACIÓN MANUAL
+  # STAGE 2: SEGURIDAD (SECURITY)
+  # ==========================================
+  security:
+    name: Security
+    needs: ci
+    uses: ./.github/workflows/security.yml
+
+  # ==========================================
+  # STAGE 3: APROBACIÓN MANUAL
   # ==========================================
   approval:
     name: Approval
     runs-on: ubuntu-24.04
-    needs: ci
+    needs: security
 
     environment:
       name: openshift-sandbox
@@ -85,7 +93,7 @@ jobs:
           echo "Autorizado para desplegar en OpenShift."
 
   # ==========================================
-  # STAGE 3: DESPLIEGUE CONTINUO (CD)
+  # STAGE 4: DESPLIEGUE CONTINUO (CD)
   # ==========================================
   cd:
     name: CD
@@ -162,13 +170,14 @@ jobs:
             -o jsonpath='{"URL: http://"}{.spec.host}{"\n"}'
 
   # ==========================================
-  # STAGE 4: NOTIFICACIONES
+  # STAGE 5: NOTIFICACIONES
   # ==========================================
   notifications:
     name: Notifications
     runs-on: ubuntu-24.04
     needs:
       - ci
+      - security
       - approval
       - cd
 
@@ -178,6 +187,7 @@ jobs:
       - name: Simulación de Envío de Correo Electrónico
         env:
           CI_RESULT: ${{ needs.ci.result }}
+          SECURITY_RESULT: ${{ needs.security.result }}
           APPROVAL_RESULT: ${{ needs.approval.result }}
           CD_RESULT: ${{ needs.cd.result }}
         run: |
@@ -185,6 +195,7 @@ jobs:
           echo "ESTADO FINAL DEL PIPELINE"
           echo "====================================="
           echo "CI: $CI_RESULT"
+          echo "Security: $SECURITY_RESULT"
           echo "Approval: $APPROVAL_RESULT"
           echo "CD: $CD_RESULT"
 
@@ -194,6 +205,7 @@ jobs:
             echo "| Etapa | Resultado |"
             echo "|---|---|"
             echo "| CI | $CI_RESULT |"
+            echo "| Security | $SECURITY_RESULT |"
             echo "| Approval | $APPROVAL_RESULT |"
             echo "| CD | $CD_RESULT |"
           } >> "$GITHUB_STEP_SUMMARY"
